@@ -73,12 +73,16 @@ class MySQLDump
      *
      * @return array $extended
      */
-    public function extend() {
+    public function extend() 
+	{
         $args = func_get_args();
         $extended = array();
-        if( is_array($args) && count($args)>0 ) {
-            foreach($args as $array) {
-                if(is_array($array)) {
+        if( is_array($args) && count($args)>0 ) 
+		{
+            foreach($args as $array) 
+			{
+                if(is_array($array)) 
+				{
                     $extended = array_merge($extended, $array);
                 }
             }
@@ -95,30 +99,40 @@ class MySQLDump
     public function start($filename = '')
     {
         // Output file can be redefined here
-        if (!empty($filename)) {
+        if (!empty($filename)) 
+		{
             $this->filename = $filename;
         }
         // We must set a name to continue
-        if (empty($this->filename)) {
+        if (empty($this->filename)) 
+		{
             throw new \Exception("Output file name is not set", 1);
         }
         // Check for zlib
-        if ( (true === $this->settings['compress']) && !function_exists("gzopen") ) {
+        if ( (true === $this->settings['compress']) && !function_exists("gzopen") ) 
+		{
             throw new \Exception("Compression is enabled, but zlib is not installed or configured properly", 1);
         }
         // Trying to bind a file with block
-        if ( true === $this->settings['compress'] ) {
+        if ( true === $this->settings['compress'] ) 
+		{
             $this->file_handler = gzopen($this->filename, "wb");
-        } else {
+        } 
+		else 
+		{
             $this->file_handler = fopen($this->filename, "wb");
         }
-        if (false === $this->file_handler) {
+        if (false === $this->file_handler) 
+		{
             throw new \Exception("Output file is not writable", 2);
         }
         // Connecting with MySQL
-        try {
+        try 
+		{
             $this->db_handler = new \PDO("mysql:dbname={$this->db};host={$this->host}", $this->user, $this->pass);
-        } catch (\PDOException $e) {
+        } 
+		catch (\PDOException $e) 
+		{
             throw new \Exception("Connection to MySQL failed with message: " . $e->getMessage(), 3);
         }
         // Fix for always-unicode output
@@ -129,28 +143,35 @@ class MySQLDump
         $this->writeHeader();
         // Listing all tables from database
         $this->tables = array();
-        foreach ($this->db_handler->query("SHOW TABLES") as $row) {
+        foreach ($this->db_handler->query("SHOW TABLES") as $row) 
+		{
             if ( empty($this->settings['include-tables']) || 
-        	(!empty($this->settings['include-tables']) && 
-        	in_array(current($row), $this->settings['include-tables'], true)) ) {
+				(!empty($this->settings['include-tables']) && 
+				in_array(current($row), $this->settings['include-tables'], true)) ) 
+			{
                 array_push($this->tables, current($row));
             }
         }
         // Exporting tables one by one
-        foreach ($this->tables as $table) {
-            if ( in_array($table, $this->settings['exclude-tables'], true) ) {
+        foreach ($this->tables as $table) 
+		{
+            if ( in_array($table, $this->settings['exclude-tables'], true) ) 
+			{
                 continue;
             }
             $is_table = $this->getTableStructure($table);
-            if ( true === $is_table && false === $this->settings['no-data'] ) {
+            if ( true === $is_table && false === $this->settings['no-data'] ) 
+			{
                 $this->listValues($table);
             }
         }
-        foreach ($this->views as $view) {
+        foreach ($this->views as $view) 
+		{
             $this->write($view);
         }
         // Releasing file
-        if ( true === $this->settings['compress'] ) {
+        if ( true === $this->settings['compress'] ) 
+		{
             return gzclose($this->file_handler);
         }
 
@@ -167,11 +188,15 @@ class MySQLDump
     {
 	$bytesWritten = 0;
         if ( true === $this->settings['compress'] ) {
-            if ( false === ($bytesWritten = gzwrite($this->file_handler, $string)) ) {
+            if ( false === ($bytesWritten = gzwrite($this->file_handler, $string)) ) 
+			{
                 throw new \Exception("Writting to file failed! Probably, there is no more free space left?", 4);
             }
-        } else {
-            if ( false === ($bytesWritten = fwrite($this->file_handler, $string)) ) {
+        } 
+		else 
+		{
+            if ( false === ($bytesWritten = fwrite($this->file_handler, $string)) ) 
+			{
                 throw new \Exception("Writting to file failed! Probably, there is no more free space left?", 4);
             }
         }
@@ -205,6 +230,7 @@ class MySQLDump
     private function getTableStructure($tablename)
     {
 	$table = '';
+	$creatr_prefix_table = '';
 		if($this->isJoomla && $this->suffix != '')
 		{
 			$table = str_replace($this->suffix,'#_',$tablename);
@@ -224,7 +250,8 @@ class MySQLDump
 				{
 					$this->write("DROP TABLE IF EXISTS `$table`;\n\n");
                 }
-                $this->write($row['Create Table'] . ";\n\n");
+				$creatr_prefix_table = str_replace($tablename,$table,$row['Create Table']);
+				$this->write($creatr_prefix_table . ";\n\n");            
                 return true;
             }
             if ( isset($row['Create View']) ) 
@@ -257,42 +284,59 @@ class MySQLDump
 		}	
         $this->write("--\n-- Dumping data for table `$table`\n--\n\n");
         
-        if ( $this->settings['single-transaction'] ) {
+        if ( $this->settings['single-transaction'] ) 
+		{
             $this->db_handler->exec("SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     	    $this->db_handler->exec("START TRANSACTION");
     	}
         if ( $this->settings['lock-tables'] )
+		{
     	    $this->db_handler->exec("LOCK TABLES `$tablename` READ LOCAL");
-	if ( $this->settings['add-locks'] )
-    	    $this->write("LOCK TABLES `$table` WRITE;\n");
+		}
+		if ( $this->settings['add-locks'] )
+    	{
+			$this->write("LOCK TABLES `$table` WRITE;\n");
+		}
     	
     	$onlyOnce = true; $lineSize = 0;
-        foreach ($this->db_handler->query("SELECT * FROM `$tablename`", PDO::FETCH_NUM) as $row) {
+        foreach ($this->db_handler->query("SELECT * FROM `$tablename`", PDO::FETCH_NUM) as $row) 
+		{
             $vals = array();
-            foreach ($row as $val) {
+            foreach ($row as $val) 
+			{
                 $vals[] = is_null($val) ? "NULL" : $this->db_handler->quote($val);
             }
-            if ($onlyOnce || !$this->settings['extended-insert'] ) {
-        	$lineSize += $this->write("INSERT INTO `$table` VALUES (" . implode(",", $vals) . ")");
-        	$onlyOnce = false;
-    	    } else {
-    		$lineSize += $this->write(",(" . implode(",", $vals) . ")"); 
+            if ($onlyOnce || !$this->settings['extended-insert'] ) 
+			{
+				$lineSize += $this->write("INSERT INTO `$table` VALUES (" . implode(",", $vals) . ")");
+				$onlyOnce = false;
+    	    } 
+			else 
+			{
+				$lineSize += $this->write(",(" . implode(",", $vals) . ")"); 
     	    }
-    	    if ( ($lineSize > MySQLDump::MAXLINESIZE) || !$this->settings['extended-insert'] ) {
-    		$onlyOnce = true; 
-    		$lineSize = $this->write(";\n");
+    	    if ( ($lineSize > MySQLDump::MAXLINESIZE) || !$this->settings['extended-insert'] ) 
+			{
+				$onlyOnce = true; 
+				$lineSize = $this->write(";\n");
     	    }
     	}
     	if ( !$onlyOnce )
-    	    $this->write(";\n");
-
-	if ( $this->settings['add-locks'] )
-    	    $this->write("UNLOCK TABLES;\n");
+    	{    
+			$this->write(";\n");
+		}
+		if ( $this->settings['add-locks'] )
+    	{   
+			$this->write("UNLOCK TABLES;\n");
+		}
         if ( $this->settings['single-transaction'] )
+		{
     	    $this->db_handler->exec("COMMIT");
+		}
         if ( $this->settings['lock-tables'] )
+		{
     	    $this->db_handler->exec("UNLOCK TABLES");
-    	    
+		}    	    
     	return;
     }
 }
