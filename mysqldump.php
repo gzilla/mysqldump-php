@@ -1,5 +1,4 @@
 <?php
-
 /*
 * Database MySQLDump Class File
 * Copyright (c) 2009 by James Elliott
@@ -57,7 +56,7 @@ class MySQLDump
      * @param string $suffix    table suffix for joomla
      * @return null
      */
-    public function __construct($db = '', $user = '', $pass = '', $host = 'localhost', $isJoomla = false, $suffix = '',$settings = null)
+    public function __construct($db = '', $user = '', $pass = '', $host = 'localhost', $isJoomla = FALSE, $suffix = '',$settings = null)
     {
         $this->db = $db;
         $this->user = $user;
@@ -205,6 +204,7 @@ class MySQLDump
      */
     private function getTableStructure($tablename)
     {
+	$table = '';
 		if($this->isJoomla && $this->suffix != '')
 		{
 			$table = str_replace($this->suffix,'#_',$tablename);
@@ -213,6 +213,7 @@ class MySQLDump
 		{
 			$table = $tablename;
 		}
+		
         foreach ($this->db_handler->query("SHOW CREATE TABLE `$tablename`") as $row) 
 		{
             if ( isset($row['Create Table']) ) 
@@ -245,6 +246,7 @@ class MySQLDump
      */
     private function listValues($tablename)
     {
+	$table = '';
 		if($this->isJoomla && $this->suffix != '')
 		{
 			$table = str_replace($this->suffix,'#_',$tablename);
