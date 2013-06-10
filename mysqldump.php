@@ -4,6 +4,7 @@
 * Database MySQLDump Class File
 * Copyright (c) 2009 by James Elliott
 * James.d.Elliott@gmail.com
+* Modified by jwebengine.com
 * GNU General Public License v3 http://www.gnu.org/licenses/gpl.html
 *
 */
@@ -17,6 +18,8 @@ class MySQLDump
     public $user;
     public $pass;
     public $db;
+	public $isJoomla = false;
+	public $suffix = '';
     public $filename = 'dump.sql';
     
     // Internal stuff
@@ -50,14 +53,18 @@ class MySQLDump
      * @param string $user      MySQL account username
      * @param string $pass      MySQL account password
      * @param string $host      MySQL server to connect to
+     * @param bool   $isJoomla  Check if this Dump for joomla
+     * @param string $suffix    table suffix for joomla
      * @return null
      */
-    public function __construct($db = '', $user = '', $pass = '', $host = 'localhost', $settings = null)
+    public function __construct($db = '', $user = '', $pass = '', $host = 'localhost', $isJoomla = false, $suffix = '',$settings = null)
     {
         $this->db = $db;
         $this->user = $user;
         $this->pass = $pass;
         $this->host = $host;
+        $this->isJoomla = $isJoomla;
+        $this->suffix = $suffix;		
         $this->settings = $this->extend($this->defaultSettings, $settings);
     }
 
@@ -182,7 +189,7 @@ class MySQLDump
         // Some info about software, source and time
         $this->write("-- mysqldump-php SQL Dump\n");
         $this->write("-- https://github.com/clouddueling/mysqldump-php\n");
-        $this->write("--\n");
+        $this->write("-- modified by jwebengine.com\n");
         $this->write("-- Host: {$this->host}\n");
         $this->write("-- Generation Time: " . date('r') . "\n\n");
         $this->write("--\n");
@@ -198,19 +205,31 @@ class MySQLDump
      */
     private function getTableStructure($tablename)
     {
-        foreach ($this->db_handler->query("SHOW CREATE TABLE `$tablename`") as $row) {
-            if ( isset($row['Create Table']) ) {
+		if($this->isJoomla && $this->suffix != '')
+		{
+			$table = str_replace($this->suffix,'#_',$tablename);
+		}
+		else
+		{
+			$table = $tablename;
+		}
+        foreach ($this->db_handler->query("SHOW CREATE TABLE `$tablename`") as $row) 
+		{
+            if ( isset($row['Create Table']) ) 
+			{
                 $this->write("-- --------------------------------------------------------\n\n");
-                $this->write("--\n-- Table structure for table `$tablename`\n--\n\n");
-                if ( true === $this->settings['add-drop-table'] ) {
-                    $this->write("DROP TABLE IF EXISTS `$tablename`;\n\n");
+                $this->write("--\n-- Table structure for table `$table`\n--\n\n");
+                if ( true === $this->settings['add-drop-table'] ) 
+				{
+					$this->write("DROP TABLE IF EXISTS `$table`;\n\n");
                 }
                 $this->write($row['Create Table'] . ";\n\n");
                 return true;
             }
-            if ( isset($row['Create View']) ) {
+            if ( isset($row['Create View']) ) 
+			{
                 $view  = "-- --------------------------------------------------------\n\n";
-                $view .= "--\n-- Table structure for view `$tablename`\n--\n\n";
+                $view .= "--\n-- Table structure for view `$table`\n--\n\n";
                 $view .= $row['Create View'] . ";\n\n";
                 $this->views[] = $view;
                 return false;
@@ -226,7 +245,15 @@ class MySQLDump
      */
     private function listValues($tablename)
     {
-        $this->write("--\n-- Dumping data for table `$tablename`\n--\n\n");
+		if($this->isJoomla && $this->suffix != '')
+		{
+			$table = str_replace($this->suffix,'#_',$tablename);
+		}
+		else
+		{
+			$table = $tablename;
+		}	
+        $this->write("--\n-- Dumping data for table `$table`\n--\n\n");
         
         if ( $this->settings['single-transaction'] ) {
             $this->db_handler->exec("SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ");
@@ -235,7 +262,7 @@ class MySQLDump
         if ( $this->settings['lock-tables'] )
     	    $this->db_handler->exec("LOCK TABLES `$tablename` READ LOCAL");
 	if ( $this->settings['add-locks'] )
-    	    $this->write("LOCK TABLES `$tablename` WRITE;\n");
+    	    $this->write("LOCK TABLES `$table` WRITE;\n");
     	
     	$onlyOnce = true; $lineSize = 0;
         foreach ($this->db_handler->query("SELECT * FROM `$tablename`", PDO::FETCH_NUM) as $row) {
@@ -244,7 +271,7 @@ class MySQLDump
                 $vals[] = is_null($val) ? "NULL" : $this->db_handler->quote($val);
             }
             if ($onlyOnce || !$this->settings['extended-insert'] ) {
-        	$lineSize += $this->write("INSERT INTO `$tablename` VALUES (" . implode(",", $vals) . ")");
+        	$lineSize += $this->write("INSERT INTO `$table` VALUES (" . implode(",", $vals) . ")");
         	$onlyOnce = false;
     	    } else {
     		$lineSize += $this->write(",(" . implode(",", $vals) . ")"); 
